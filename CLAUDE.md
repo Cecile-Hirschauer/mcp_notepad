@@ -27,52 +27,33 @@ npm run verify      # lint + format:check + typecheck + test (mirrors CI)
 
 ## MCP Development Notes
 
-MCP servers expose tools/resources to LLM clients via the MCP protocol. Dependencies in use: `@modelcontextprotocol/server`, `@modelcontextprotocol/client`, `zod`. Entry point for dev: `src/dev.ts` (à créer).
+MCP servers expose tools/resources to LLM clients via the MCP protocol. Dependencies in use: `@modelcontextprotocol/server`, `@modelcontextprotocol/client`, `zod`. Entry point for dev: `src/dev.ts`.
 
-## État du projet
+## État d'avancement
 
-### Lot 2 — fait (commits 285a112, b63455f, 2714629)
-
-Fichiers livrés :
-- `src/rules.ts` — constante `NOTEPAD_RULES` (texte des règles)
-- `src/store/types.ts` — interfaces `Note` et `NotesStore` (`listNotes`, `appendNote`, `replaceNotes`)
-- `src/store/memory.ts` — `InMemoryNotesStore` (implémentation en mémoire)
-- `src/server.ts` — factory `createNotepadServer(store): McpServer` avec 2 outils enregistrés : `get_rules` et `read_notes`
-- `tests/store.test.ts` — tests unitaires du store
-- `tests/server.test.ts` — tests in-process du serveur MCP (voir ci-dessous)
-
-### Prochaine étape — Lot 3
-
-1. Créer `src/dev.ts` : instancie `InMemoryNotesStore` + `createNotepadServer`, branche sur stdio transport pour `npm run dev`.
-2. Tester avec **MCP Inspector** (`npx @modelcontextprotocol/inspector`).
-3. Ajouter l'outil `append_note` (paramètres : `content: string`, `agent: string`).
+- ✅ Lot 0 — projet TS strict (ESM, nodenext), Vitest, ESLint 10 + Prettier, CI GitHub Actions
+- ✅ Lot 2 — serveur MCP : `get_rules` + `read_notes`, store en mémoire, 11 tests verts,
+  dev server `node:http` sur le port 3000
+- ⏭️ Prochaine étape — Lot 1 : rédiger les vraies règles dans `src/rules.ts`
 
 ## Décisions d'architecture
 
-### Pattern factory avec injection de store
-`createNotepadServer(store)` reçoit le store en paramètre → le serveur est testable sans I/O. Les tests injectent `InMemoryNotesStore` directement.
-
-### Tests in-process (pas de port réseau)
-Technique utilisée dans `tests/server.test.ts` :
-```ts
-handler = createMcpHandler(() => createNotepadServer(store));
-const transport = new StreamableHTTPClientTransport(new URL('http://test.local/mcp'), {
-  fetch: (url, init) => handler.fetch(new Request(url, init)),
-});
-client = new Client({ name: 'test-harness', version: '1.0.0' }, { versionNegotiation: { mode: 'auto' } });
-await client.connect(transport);
-```
-`createMcpHandler` vient de `@modelcontextprotocol/server` ; `Client` + `StreamableHTTPClientTransport` viennent de `@modelcontextprotocol/client`.
-
-### Schemas Zod
-Utiliser `zod/v4` (import `* as z from 'zod/v4'`) pour les `inputSchema` des outils.
+- SDK MCP v2 (`@modelcontextprotocol/server` 2.3.1 + `/node` 2.1.1 + `/client`)
+- TypeScript 6 — **pas** la 7, ESLint n'est pas compatible
+- Node.js + TS pur, sans framework. Déploiement prévu : Vercel Functions (`/api`), stockage Neon
+- Injection de dépendances : `createNotepadServer(store)` ne connaît que l'interface `NotesStore`.
+  Le store Neon se branchera sans toucher au serveur
+- Une note = une ligne en base, pas un bloc de texte réécrit → pas de race condition sur l'append
+- Imports relatifs en `.js` (contrainte ESM + nodenext)
+- Tests in-process : `createMcpHandler` + `StreamableHTTPClientTransport` avec `fetch` intercepté — zéro port réseau
+- Schemas outils : `zod/v4` (`import * as z from 'zod/v4'`)
 
 ### Structure des fichiers source
 ```
 src/
   rules.ts          # constante NOTEPAD_RULES
-  server.ts         # factory createNotepadServer
-  dev.ts            # point d'entrée npm run dev (à créer)
+  server.ts         # factory createNotepadServer(store)
+  dev.ts            # point d'entrée npm run dev (node:http, port 3000)
   store/
     types.ts        # interfaces Note, NotesStore
     memory.ts       # InMemoryNotesStore
@@ -80,3 +61,8 @@ tests/
   store.test.ts
   server.test.ts
 ```
+
+## Commandes utiles
+
+- `npm run dev` — serveur local sur http://127.0.0.1:3000/mcp
+- `npm run verify` — lint + format + typecheck + tests (ce que fait la CI)
