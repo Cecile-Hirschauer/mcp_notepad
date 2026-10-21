@@ -37,9 +37,14 @@ afterEach(async () => {
 });
 
 describe('notepad MCP server', () => {
-  it('exposes get_rules and read_notes', async () => {
+  it('exposes the four notepad tools', async () => {
     const { tools } = await client.listTools();
-    expect(tools.map((t) => t.name).sort()).toEqual(['get_rules', 'read_notes']);
+    expect(tools.map((t) => t.name).sort()).toEqual([
+      'append_note',
+      'get_rules',
+      'read_notes',
+      'replace_notes',
+    ]);
   });
 
   it('describes every tool, so the model knows when to call it', async () => {
@@ -67,5 +72,139 @@ describe('notepad MCP server', () => {
 
     expect(text).toContain('deliver on friday');
     expect(text).toContain('claude-code');
+  });
+
+  it('append_note stores a valid note', async () => {
+    const result = await client.callTool({
+      name: 'append_note',
+      arguments: { content: '[deadline] The project must be delivered on Friday.' },
+    });
+
+    expect(result.isError).toBeFalsy();
+
+    const notes = await store.listNotes();
+    expect(notes).toHaveLength(1);
+    expect(notes[0]?.content).toBe('[deadline] The project must be delivered on Friday.');
+  });
+
+  it('append_note rejects a note without a category prefix', async () => {
+    const result = await client.callTool({
+      name: 'append_note',
+      arguments: { content: 'The project must be delivered on Friday.' },
+    });
+
+    expect(result.isError).toBe(true);
+    await expect(store.listNotes()).resolves.toHaveLength(0);
+  });
+
+  it('tells the agent which categories are allowed when it gets the prefix wrong', async () => {
+    const result = await client.callTool({
+      name: 'append_note',
+      arguments: { content: '[urgent] Ship it now.' },
+    });
+
+    const text = firstText(result.content);
+    expect(text).toContain('[deadline]');
+    expect(text).toContain('[info]');
+  });
+
+  it('append_note rejects an empty note', async () => {
+    const result = await client.callTool({
+      name: 'append_note',
+      arguments: { content: '   ' },
+    });
+
+    expect(result.isError).toBe(true);
+  });
+
+  it('append_note rejects a note longer than the limit', async () => {
+    const result = await client.callTool({
+      name: 'append_note',
+      arguments: { content: `[info] ${'a'.repeat(300)}` },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(firstText(result.content)).toContain('280');
+  });
+
+  it('append_note does not overwrite existing notes', async () => {
+    await client.callTool({
+      name: 'append_note',
+      arguments: { content: '[todo] Write the README.' },
+    });
+    await client.callTool({
+      name: 'append_note',
+      arguments: { content: '[todo] Deploy to Vercel.' },
+    });
+
+    const notes = await store.listNotes();
+    expect(notes.map((n) => n.content)).toEqual([
+      '[todo] Write the README.',
+      '[todo] Deploy to Vercel.',
+    ]);
+  });
+
+  it('replace_notes erases everything and keeps only the new note', async () => {
+    await store.appendNote('[todo] Old one.', 'agent-a');
+    await store.appendNote('[todo] Old two.', 'agent-a');
+
+    const result = await client.callTool({
+      name: 'replace_notes',
+      arguments: { content: '[decision] We start over.', confirmed: true },
+    });
+
+    expect(result.isError).toBeFalsy();
+
+    const notes = await store.listNotes();
+    expect(notes).toHaveLength(1);
+    expect(notes[0]?.content).toBe('[decision] We start over.');
+  });
+
+  it('replace_notes reports how many notes it erased', async () => {
+    await store.appendNote('[todo] Old one.', 'agent-a');
+    await store.appendNote('[todo] Old two.', 'agent-a');
+
+    const result = await client.callTool({
+      name: 'replace_notes',
+      arguments: { content: '[decision] We start over.', confirmed: true },
+    });
+
+    expect(firstText(result.content)).toContain('2');
+  });
+
+  it('refuses to replace without an explicit confirmation', async () => {
+    await store.appendNote('[todo] Precious note.', 'agent-a');
+
+    const result = await client.callTool({
+      name: 'replace_notes',
+      arguments: { content: '[info] Wiped.' },
+    });
+
+    expect(result.isError).toBe(true);
+    await expect(store.listNotes()).resolves.toHaveLength(1);
+  });
+
+  it('refuses confirmed: false', async () => {
+    await store.appendNote('[todo] Precious note.', 'agent-a');
+
+    const result = await client.callTool({
+      name: 'replace_notes',
+      arguments: { content: '[info] Wiped.', confirmed: false },
+    });
+
+    expect(result.isError).toBe(true);
+    await expect(store.listNotes()).resolves.toHaveLength(1);
+  });
+
+  it('applies the same content rules as append_note', async () => {
+    await store.appendNote('[todo] Precious note.', 'agent-a');
+
+    const result = await client.callTool({
+      name: 'replace_notes',
+      arguments: { content: 'no category prefix here', confirmed: true },
+    });
+
+    expect(result.isError).toBe(true);
+    await expect(store.listNotes()).resolves.toHaveLength(1);
   });
 });
