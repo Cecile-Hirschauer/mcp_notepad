@@ -22,6 +22,7 @@ const validateOrigin = localhostOriginValidation();
 const httpServer = createServer((req, res) => {
   if (!validateHost(req, res)) return;
   if (!validateOrigin(req, res)) return;
+  if (req.method === undefined) return;
 
   void mcp(req, res);
 });
