@@ -32,8 +32,8 @@ MCP servers expose tools/resources to LLM clients via the MCP protocol. Dependen
 ## État d'avancement
 
 - ✅ Lot 0 — projet TS strict (ESM, nodenext), Vitest, ESLint 10 + Prettier, CI GitHub Actions
-- ✅ Lot 2 — serveur MCP : `get_rules` + `read_notes`, store en mémoire, 11 tests verts,
-  dev server `node:http` sur le port 3000
+- ✅ Lot 2 — serveur MCP : 4 outils (`get_rules`, `read_notes`, `append_note`, `replace_notes`),
+  validation dans `src/validation.ts`, store en mémoire, dev server `node:http` port 3000, 17 tests verts
 - ⏭️ Prochaine étape — Lot 1 : rédiger les vraies règles dans `src/rules.ts`
 
 ## Décisions d'architecture
@@ -52,7 +52,8 @@ MCP servers expose tools/resources to LLM clients via the MCP protocol. Dependen
 ```
 src/
   rules.ts          # constante NOTEPAD_RULES
-  server.ts         # factory createNotepadServer(store)
+  validation.ts     # validateNoteContent (préfixe, longueur, non-vide)
+  server.ts         # factory createNotepadServer(store, agent?)
   dev.ts            # point d'entrée npm run dev (node:http, port 3000)
   store/
     types.ts        # interfaces Note, NotesStore
