@@ -42,18 +42,18 @@ MCP servers expose tools/resources to LLM clients via the MCP protocol. Dependen
 ## Ce qui existe
 
 src/
-├── rules.ts          NOTEPAD_RULES (texte pour l'agent) + NOTEPAD_CATEGORIES
-├── validation.ts     validateNoteContent — préfixe de catégorie, longueur max 280
-├── auth.ts           readAgentName — lit X-Agent-Name, défaut "unknown", tronqué à 64
-├── server.ts         createNotepadServer(store, log, agent) + wrapper `logged`
-├── dev.ts            serveur node:http local
+├── rules.ts NOTEPAD_RULES (texte pour l'agent) + NOTEPAD_CATEGORIES
+├── validation.ts validateNoteContent — préfixe de catégorie, longueur max 280
+├── auth.ts readAgentName — lit X-Agent-Name, défaut "unknown", tronqué à 64
+├── server.ts createNotepadServer(store, log, agent) + wrapper `logged`
+├── dev.ts serveur node:http local
 └── store/
-    ├── types.ts      interfaces NotesStore et ActionLog
-    ├── memory.ts     implémentations en mémoire
-    ├── neon.ts       implémentations Postgres
-    └── index.ts      createStores() — choisit selon DATABASE_URL
+├── types.ts interfaces NotesStore et ActionLog
+├── memory.ts implémentations en mémoire
+├── neon.ts implémentations Postgres
+└── index.ts createStores() — choisit selon DATABASE_URL
 
-db/schema.sql + db/migrate.ts   tables notes et action_log
+db/schema.sql + db/migrate.ts tables notes et action_log
 
 ## Décisions d'architecture
 
