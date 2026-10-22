@@ -6,12 +6,13 @@ import {
 import { createMcpHandler } from '@modelcontextprotocol/server';
 import { createServer } from 'node:http';
 import { createNotepadServer } from './server.js';
-import { InMemoryNotesStore } from './store/memory.js';
+import { InMemoryActionLog, InMemoryNotesStore } from './store/memory.js';
 
 const PORT = Number(process.env.PORT ?? 3000);
 
 const store = new InMemoryNotesStore();
-const handler = createMcpHandler(() => createNotepadServer(store));
+const log = new InMemoryActionLog();
+const handler = createMcpHandler(() => createNotepadServer(store, log));
 const mcp = toNodeHandler(handler, {
   onerror: (error) => console.error('[mcp] handler error:', error),
 });

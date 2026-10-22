@@ -1,10 +1,29 @@
 import { McpServer } from '@modelcontextprotocol/server';
 import * as z from 'zod/v4';
 import { NOTEPAD_RULES } from './rules.js';
-import type { NotesStore } from './store/types.js';
+import type { ActionLog, NotesStore } from './store/types.js';
 import { validateNoteContent } from './validation.js';
 
-export function createNotepadServer(store: NotesStore, agent = 'unknown'): McpServer {
+type ToolResult = { content: { type: 'text'; text: string }[]; isError?: boolean };
+
+function logged(
+  log: ActionLog,
+  agent: string,
+  action: string,
+  run: () => Promise<ToolResult> | ToolResult,
+): () => Promise<ToolResult> {
+  return async () => {
+    const result = await run();
+    await log.record({ agent, action, success: result.isError !== true });
+    return result;
+  };
+}
+
+export function createNotepadServer(
+  store: NotesStore,
+  log: ActionLog,
+  agent = 'unknown',
+): McpServer {
   const server = new McpServer({ name: 'notepad', version: '1.0.0' });
 
   server.registerTool(
@@ -15,9 +34,9 @@ export function createNotepadServer(store: NotesStore, agent = 'unknown'): McpSe
         'Always call this first, before any other notepad tool.',
       inputSchema: z.object({}),
     },
-    () => ({
+    logged(log, agent, 'get_rules', () => ({
       content: [{ type: 'text', text: NOTEPAD_RULES }],
-    }),
+    })),
   );
 
   server.registerTool(
@@ -28,7 +47,7 @@ export function createNotepadServer(store: NotesStore, agent = 'unknown'): McpSe
         'as a list of notes with their author and creation date.',
       inputSchema: z.object({}),
     },
-    async () => {
+    logged(log, agent, 'read_notes', async () => {
       const notes = await store.listNotes();
 
       const text =
@@ -37,7 +56,7 @@ export function createNotepadServer(store: NotesStore, agent = 'unknown'): McpSe
           : notes.map((n) => `- [${n.createdAt}] (${n.agent}) ${n.content}`).join('\n');
 
       return { content: [{ type: 'text', text }] };
-    },
+    }),
   );
 
   server.registerTool(
@@ -51,17 +70,18 @@ export function createNotepadServer(store: NotesStore, agent = 'unknown'): McpSe
         content: z.string().describe('One short sentence, prefixed with its category.'),
       }),
     },
-    async ({ content }) => {
-      const problem = validateNoteContent(content);
-      if (problem !== null) {
-        return { content: [{ type: 'text', text: problem }], isError: true };
-      }
+    async (args) =>
+      logged(log, agent, 'append_note', async () => {
+        const problem = validateNoteContent(args.content);
+        if (problem !== null) {
+          return { content: [{ type: 'text', text: problem }], isError: true };
+        }
 
-      const note = await store.appendNote(content.trim(), agent);
-      return {
-        content: [{ type: 'text', text: `Note added: ${note.content}` }],
-      };
-    },
+        const note = await store.appendNote(args.content.trim(), agent);
+        return {
+          content: [{ type: 'text', text: `Note added: ${note.content}` }],
+        };
+      })(),
   );
 
   server.registerTool(
@@ -79,24 +99,25 @@ export function createNotepadServer(store: NotesStore, agent = 'unknown'): McpSe
           .describe('Must be true. Set it only after the user explicitly confirmed the erasure.'),
       }),
     },
-    async ({ content }) => {
-      const problem = validateNoteContent(content);
-      if (problem !== null) {
-        return { content: [{ type: 'text', text: problem }], isError: true };
-      }
+    async (args) =>
+      logged(log, agent, 'replace_notes', async () => {
+        const problem = validateNoteContent(args.content);
+        if (problem !== null) {
+          return { content: [{ type: 'text', text: problem }], isError: true };
+        }
 
-      const previous = await store.listNotes();
-      const note = await store.replaceNotes(content.trim(), agent);
+        const previous = await store.listNotes();
+        const note = await store.replaceNotes(args.content.trim(), agent);
 
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Notepad replaced. ${String(previous.length)} note(s) were erased. It now contains: ${note.content}`,
-          },
-        ],
-      };
-    },
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Notepad replaced. ${String(previous.length)} note(s) were erased. It now contains: ${note.content}`,
+            },
+          ],
+        };
+      })(),
   );
 
   return server;

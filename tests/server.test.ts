@@ -2,9 +2,10 @@ import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/cli
 import { createMcpHandler } from '@modelcontextprotocol/server';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createNotepadServer } from '../src/server.js';
-import { InMemoryNotesStore } from '../src/store/memory.js';
+import { InMemoryActionLog, InMemoryNotesStore } from '../src/store/memory.js';
 
 let store: InMemoryNotesStore;
+let log: InMemoryActionLog;
 let handler: ReturnType<typeof createMcpHandler>;
 let client: Client;
 
@@ -18,7 +19,8 @@ function firstText(content: { type: string; text?: string }[]): string {
 
 beforeEach(async () => {
   store = new InMemoryNotesStore();
-  handler = createMcpHandler(() => createNotepadServer(store));
+  log = new InMemoryActionLog();
+  handler = createMcpHandler(() => createNotepadServer(store, log));
 
   const transport = new StreamableHTTPClientTransport(new URL('http://test.local/mcp'), {
     fetch: (url, init) => handler.fetch(new Request(url, init)),
@@ -206,5 +208,52 @@ describe('notepad MCP server', () => {
 
     expect(result.isError).toBe(true);
     await expect(store.listNotes()).resolves.toHaveLength(1);
+  });
+
+  it('logs a successful call', async () => {
+    await client.callTool({ name: 'get_rules', arguments: {} });
+
+    const entries = await log.listActions();
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.action).toBe('get_rules');
+    expect(entries[0]?.success).toBe(true);
+  });
+
+  it('logs a failed call as a failure', async () => {
+    await client.callTool({
+      name: 'append_note',
+      arguments: { content: 'no category prefix' },
+    });
+
+    const entries = await log.listActions();
+    expect(entries[0]?.action).toBe('append_note');
+    expect(entries[0]?.success).toBe(false);
+  });
+
+  it('records the agent name and an ISO date on every entry', async () => {
+    await client.callTool({ name: 'read_notes', arguments: {} });
+
+    const entry = (await log.listActions())[0];
+    expect(entry?.agent).toBe('unknown');
+    expect(entry?.date).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it('lists the most recent action first', async () => {
+    await client.callTool({ name: 'get_rules', arguments: {} });
+    await client.callTool({ name: 'read_notes', arguments: {} });
+
+    const entries = await log.listActions();
+    expect(entries.map((e) => e.action)).toEqual(['read_notes', 'get_rules']);
+  });
+
+  it('logs every tool, including the destructive one', async () => {
+    await client.callTool({
+      name: 'replace_notes',
+      arguments: { content: '[decision] Fresh start.', confirmed: true },
+    });
+
+    const entries = await log.listActions();
+    expect(entries[0]?.action).toBe('replace_notes');
+    expect(entries[0]?.success).toBe(true);
   });
 });
