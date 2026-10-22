@@ -37,16 +37,19 @@ MCP servers expose tools/resources to LLM clients via the MCP protocol. Dependen
 - ✅ Lot 4 — les 4 outils avec leurs garde-fous
 - ✅ Lot 5 — identité de l'agent (`X-Agent-Name`) + journal de tous les appels
 - ✅ Lot 3 — persistance Neon Postgres, tests de contrat sur les deux implémentations
-- ⏭️ Prochaine étape — authentification par clé partagée, puis déploiement Vercel
+- ✅ Lot 6 — authentification par clé partagée (MCP_API_KEY)
+- ✅ Lot 7 — page de lecture HTML (`/view?key=VIEW_KEY`) avec clé séparée
+- ⏭️ Prochaine étape — déploiement Vercel, puis démo multi-clients
 
 ## Ce qui existe
 
 src/
 ├── rules.ts NOTEPAD_RULES (texte pour l'agent) + NOTEPAD_CATEGORIES
 ├── validation.ts validateNoteContent — préfixe de catégorie, longueur max 280
-├── auth.ts readAgentName — lit X-Agent-Name, défaut "unknown", tronqué à 64
+├── auth.ts readAgentName, isAuthorizedKey (MCP), isViewAuthorized (page)
+├── view.ts renderPage — rendu HTML des notes et du journal (escapeHtml partout)
 ├── server.ts createNotepadServer(store, log, agent) + wrapper `logged`
-├── dev.ts serveur node:http local
+├── dev.ts serveur node:http local, route /view séparée du MCP
 └── store/
 ├── types.ts interfaces NotesStore et ActionLog
 ├── memory.ts implémentations en mémoire
@@ -78,6 +81,20 @@ db/schema.sql + db/migrate.ts tables notes et action_log
   l'appel accidentel et rend l'acte traçable
 - Les tests Neon vident la table `notes` — base de dev et de test confondues
 - La catégorie reste dans le préfixe du contenu, pas dans une colonne dédiée
+
+## Exigences du TP
+
+| Exigence | État |
+|---|---|
+| Les 4 outils fonctionnent | ✅ |
+| L'agent appelle get_rules() d'abord | ✅ |
+| Le contenu persiste | ✅ |
+| Une clé protège l'accès | ✅ |
+| Chaque appel journalisé avec un nom d'agent | ✅ |
+| La page affiche notes et historique | ✅ |
+| Serveur accessible à distance | ⏳ Vercel |
+| Un vrai client MCP utilise le serveur | ⏳ |
+| Modification visible depuis un autre client | ⏳ |
 
 ## Commandes
 
