@@ -7,12 +7,11 @@ import { createMcpHandler } from '@modelcontextprotocol/server';
 import { createServer } from 'node:http';
 import { readAgentName } from './auth.js';
 import { createNotepadServer } from './server.js';
-import { InMemoryActionLog, InMemoryNotesStore } from './store/memory.js';
+import { createStores } from './store/index.js';
 
+const { store, log } = createStores();
 const PORT = Number(process.env.PORT ?? 3000);
 
-const store = new InMemoryNotesStore();
-const log = new InMemoryActionLog();
 const handler = createMcpHandler((ctx) =>
   createNotepadServer(store, log, readAgentName(ctx.requestInfo)),
 );
