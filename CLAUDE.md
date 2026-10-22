@@ -77,8 +77,8 @@ db/schema.sql + db/migrate.ts tables notes et action_log
 ## Déploiement Vercel
 
 - URL de production : `https://mcp-notepad.vercel.app`
-- Deux serverless functions dans `api/` : `mcp.ts` (endpoint MCP) et `view.ts` (page HTML)
-- `vercel.json` réécrit `/mcp` → `/api/mcp` et `/view` → `/api/view`, `framework: null`
+- Trois serverless functions dans `api/` : `index.ts` (landing page publique), `mcp.ts` (endpoint MCP) et `view.ts` (page HTML)
+- `vercel.json` réécrit `/` → `/api/index`, `/mcp` → `/api/mcp` et `/view` → `/api/view`, `framework: null`
 - **Piège** : Vercel détecte automatiquement un fichier `src/server.ts` comme entrypoint
   et ignore le dossier `api/`. Le fichier a été renommé `src/notepad-server.ts` pour
   éviter ce conflit (cf. commit `c0bafed`).
