@@ -40,6 +40,14 @@ export function isAuthorizedKey(
   return safeEqual(presented, expectedKey);
 }
 
+/** Read-only page access: the view key only, never the MCP key. */
+export function isViewAuthorized(keyParam: string | undefined, expectedViewKey: string): boolean {
+  if (keyParam === undefined || keyParam === '') {
+    return false;
+  }
+  return safeEqual(keyParam, expectedViewKey);
+}
+
 /** Web-standard Request variant (used on Vercel). */
 export function isAuthorized(request: Request, expectedKey: string): boolean {
   return isAuthorizedKey(
