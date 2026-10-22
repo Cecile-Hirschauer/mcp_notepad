@@ -39,7 +39,7 @@ MCP servers expose tools/resources to LLM clients via the MCP protocol. Dependen
 - ✅ Lot 3 — persistance Neon Postgres, tests de contrat sur les deux implémentations
 - ✅ Lot 6 — authentification par clé partagée (MCP_API_KEY)
 - ✅ Lot 7 — page de lecture HTML (`/view?key=VIEW_KEY`) avec clé séparée
-- ⏭️ Prochaine étape — déploiement Vercel, puis démo multi-clients
+- ✅ Lot 8 — déploiement Vercel (`https://mcp-notepad.vercel.app`) + démo multi-clients
 
 ## Ce qui existe
 
@@ -48,7 +48,7 @@ src/
 ├── validation.ts validateNoteContent — préfixe de catégorie, longueur max 280
 ├── auth.ts readAgentName, isAuthorizedKey (MCP), isViewAuthorized (page)
 ├── view.ts renderPage — rendu HTML des notes et du journal (escapeHtml partout)
-├── server.ts createNotepadServer(store, log, agent) + wrapper `logged`
+├── notepad-server.ts createNotepadServer(store, log, agent) + wrapper `logged`
 ├── dev.ts serveur node:http local, route /view séparée du MCP
 └── store/
 ├── types.ts interfaces NotesStore et ActionLog
@@ -74,6 +74,15 @@ db/schema.sql + db/migrate.ts tables notes et action_log
   (incompatible avec les types structurels du SDK dans `dev.ts`)
 - Imports relatifs en `.js` (ESM + nodenext)
 
+## Déploiement Vercel
+
+- URL de production : `https://mcp-notepad.vercel.app`
+- Deux serverless functions dans `api/` : `mcp.ts` (endpoint MCP) et `view.ts` (page HTML)
+- `vercel.json` réécrit `/mcp` → `/api/mcp` et `/view` → `/api/view`, `framework: null`
+- **Piège** : Vercel détecte automatiquement un fichier `src/server.ts` comme entrypoint
+  et ignore le dossier `api/`. Le fichier a été renommé `src/notepad-server.ts` pour
+  éviter ce conflit (cf. commit `c0bafed`).
+
 ## Limites assumées (à citer en soutenance)
 
 - `replace_notes` : deux requêtes sans transaction (le driver HTTP Neon ne les supporte pas)
@@ -84,17 +93,17 @@ db/schema.sql + db/migrate.ts tables notes et action_log
 
 ## Exigences du TP
 
-| Exigence                                    | État      |
-| ------------------------------------------- | --------- |
-| Les 4 outils fonctionnent                   | ✅        |
-| L'agent appelle get_rules() d'abord         | ✅        |
-| Le contenu persiste                         | ✅        |
-| Une clé protège l'accès                     | ✅        |
-| Chaque appel journalisé avec un nom d'agent | ✅        |
-| La page affiche notes et historique         | ✅        |
-| Serveur accessible à distance               | ⏳ Vercel |
-| Un vrai client MCP utilise le serveur       | ⏳        |
-| Modification visible depuis un autre client | ⏳        |
+| Exigence                                    | État |
+| ------------------------------------------- | ---- |
+| Les 4 outils fonctionnent                   | ✅   |
+| L'agent appelle get_rules() d'abord         | ✅   |
+| Le contenu persiste                         | ✅   |
+| Une clé protège l'accès                     | ✅   |
+| Chaque appel journalisé avec un nom d'agent | ✅   |
+| La page affiche notes et historique         | ✅   |
+| Serveur accessible à distance               | ✅   |
+| Un vrai client MCP utilise le serveur       | ✅   |
+| Modification visible depuis un autre client | ✅   |
 
 ## Commandes
 
