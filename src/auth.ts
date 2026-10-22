@@ -4,11 +4,18 @@ const AGENT_NAME_HEADER = 'x-agent-name';
 const UNKNOWN_AGENT = 'unknown';
 
 export function readAgentName(request: Request | undefined): string {
-  const raw = request?.headers.get(AGENT_NAME_HEADER)?.trim();
-  if (raw === undefined || raw === '') {
-    return UNKNOWN_AGENT;
+  const fromHeader = request?.headers.get(AGENT_NAME_HEADER)?.trim();
+  if (fromHeader !== undefined && fromHeader !== '') {
+    return fromHeader.slice(0, 64);
   }
-  return raw.slice(0, 64);
+
+  const fromQuery =
+    request === undefined ? null : new URL(request.url).searchParams.get('agent')?.trim();
+  if (fromQuery !== undefined && fromQuery !== null && fromQuery !== '') {
+    return fromQuery.slice(0, 64);
+  }
+
+  return UNKNOWN_AGENT;
 }
 
 function safeEqual(a: string, b: string): boolean {

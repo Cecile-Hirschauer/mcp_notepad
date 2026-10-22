@@ -6,7 +6,7 @@ import {
 import { createMcpHandler } from '@modelcontextprotocol/server';
 import { createServer } from 'node:http';
 import { isAuthorizedKey, isViewAuthorized, readAgentName } from './auth.js';
-import { createNotepadServer } from './server.js';
+import { createNotepadServer } from './notepad-server.js';
 import { createStores } from './store/index.js';
 import { renderPage } from './view.js';
 

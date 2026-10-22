@@ -1,7 +1,7 @@
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { createMcpHandler } from '@modelcontextprotocol/server';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createNotepadServer } from '../src/server.js';
+import { createNotepadServer } from '../src/notepad-server.js';
 import { InMemoryActionLog, InMemoryNotesStore } from '../src/store/memory.js';
 
 let store: InMemoryNotesStore;

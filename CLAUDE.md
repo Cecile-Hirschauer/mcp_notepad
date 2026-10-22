@@ -84,17 +84,17 @@ db/schema.sql + db/migrate.ts tables notes et action_log
 
 ## Exigences du TP
 
-| Exigence | État |
-|---|---|
-| Les 4 outils fonctionnent | ✅ |
-| L'agent appelle get_rules() d'abord | ✅ |
-| Le contenu persiste | ✅ |
-| Une clé protège l'accès | ✅ |
-| Chaque appel journalisé avec un nom d'agent | ✅ |
-| La page affiche notes et historique | ✅ |
-| Serveur accessible à distance | ⏳ Vercel |
-| Un vrai client MCP utilise le serveur | ⏳ |
-| Modification visible depuis un autre client | ⏳ |
+| Exigence                                    | État      |
+| ------------------------------------------- | --------- |
+| Les 4 outils fonctionnent                   | ✅        |
+| L'agent appelle get_rules() d'abord         | ✅        |
+| Le contenu persiste                         | ✅        |
+| Une clé protège l'accès                     | ✅        |
+| Chaque appel journalisé avec un nom d'agent | ✅        |
+| La page affiche notes et historique         | ✅        |
+| Serveur accessible à distance               | ⏳ Vercel |
+| Un vrai client MCP utilise le serveur       | ⏳        |
+| Modification visible depuis un autre client | ⏳        |
 
 ## Commandes
 

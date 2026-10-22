@@ -1,6 +1,6 @@
 import { createMcpHandler } from '@modelcontextprotocol/server';
 import { isAuthorized, readAgentName } from '../src/auth.js';
-import { createNotepadServer } from '../src/server.js';
+import { createNotepadServer } from '../src/notepad-server.js';
 import { createStores } from '../src/store/index.js';
 
 const { store, log } = createStores();
