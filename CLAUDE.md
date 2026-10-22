@@ -32,38 +32,56 @@ MCP servers expose tools/resources to LLM clients via the MCP protocol. Dependen
 ## État d'avancement
 
 - ✅ Lot 0 — projet TS strict (ESM, nodenext), Vitest, ESLint 10 + Prettier, CI GitHub Actions
-- ✅ Lot 2 — serveur MCP : 4 outils (`get_rules`, `read_notes`, `append_note`, `replace_notes`),
-  validation dans `src/validation.ts`, store en mémoire, dev server `node:http` port 3000, 17 tests verts
-- ⏭️ Prochaine étape — Lot 1 : rédiger les vraies règles dans `src/rules.ts`
+- ✅ Lot 1 — règles du bloc-notes rédigées (`src/rules.ts`), catégories fermées
+- ✅ Lot 2 — serveur MCP + dev server `node:http` sur le port 3000
+- ✅ Lot 4 — les 4 outils avec leurs garde-fous
+- ✅ Lot 5 — identité de l'agent (`X-Agent-Name`) + journal de tous les appels
+- ✅ Lot 3 — persistance Neon Postgres, tests de contrat sur les deux implémentations
+- ⏭️ Prochaine étape — authentification par clé partagée, puis déploiement Vercel
+
+## Ce qui existe
+
+src/
+├── rules.ts          NOTEPAD_RULES (texte pour l'agent) + NOTEPAD_CATEGORIES
+├── validation.ts     validateNoteContent — préfixe de catégorie, longueur max 280
+├── auth.ts           readAgentName — lit X-Agent-Name, défaut "unknown", tronqué à 64
+├── server.ts         createNotepadServer(store, log, agent) + wrapper `logged`
+├── dev.ts            serveur node:http local
+└── store/
+    ├── types.ts      interfaces NotesStore et ActionLog
+    ├── memory.ts     implémentations en mémoire
+    ├── neon.ts       implémentations Postgres
+    └── index.ts      createStores() — choisit selon DATABASE_URL
+
+db/schema.sql + db/migrate.ts   tables notes et action_log
 
 ## Décisions d'architecture
 
-- SDK MCP v2 (`@modelcontextprotocol/server` 2.3.1 + `/node` 2.1.1 + `/client`)
-- TypeScript 6 — **pas** la 7, ESLint n'est pas compatible
-- Node.js + TS pur, sans framework. Déploiement prévu : Vercel Functions (`/api`), stockage Neon
-- Injection de dépendances : `createNotepadServer(store)` ne connaît que l'interface `NotesStore`.
-  Le store Neon se branchera sans toucher au serveur
-- Une note = une ligne en base, pas un bloc de texte réécrit → pas de race condition sur l'append
-- Imports relatifs en `.js` (contrainte ESM + nodenext)
-- Tests in-process : `createMcpHandler` + `StreamableHTTPClientTransport` avec `fetch` intercepté — zéro port réseau
-- Schemas outils : `zod/v4` (`import * as z from 'zod/v4'`)
+- SDK MCP v2 — `McpServer`, `registerTool(name, config, handler)`, `createMcpHandler(factory)`,
+  `toNodeHandler` pour Node. Zod importé depuis `zod/v4`
+- La factory tourne **une fois par requête** : c'est ainsi qu'on lit `ctx.requestInfo`
+  pour récupérer le nom de l'agent. Le store, lui, vit hors de la factory
+- Injection de dépendances : le serveur ne connaît que les interfaces, jamais Neon
+- Une note = une ligne en base → `append` est un INSERT, pas de race condition
+- Garde-fous côté serveur plutôt que règles déclaratives seules :
+  `z.literal(true)` sur `confirmed` rend `replace_notes` impossible à appeler par accident
+- Les messages d'erreur sont rédigés **pour un LLM** : ils rappellent les catégories valides
+- Le wrapper `logged` enveloppe chaque handler → impossible d'oublier de journaliser
+- TypeScript 6 (pas 7, ESLint incompatible) ; `exactOptionalPropertyTypes: false`
+  (incompatible avec les types structurels du SDK dans `dev.ts`)
+- Imports relatifs en `.js` (ESM + nodenext)
 
-### Structure des fichiers source
-```
-src/
-  rules.ts          # constante NOTEPAD_RULES
-  validation.ts     # validateNoteContent (préfixe, longueur, non-vide)
-  server.ts         # factory createNotepadServer(store, agent?)
-  dev.ts            # point d'entrée npm run dev (node:http, port 3000)
-  store/
-    types.ts        # interfaces Note, NotesStore
-    memory.ts       # InMemoryNotesStore
-tests/
-  store.test.ts
-  server.test.ts
-```
+## Limites assumées (à citer en soutenance)
 
-## Commandes utiles
+- `replace_notes` : deux requêtes sans transaction (le driver HTTP Neon ne les supporte pas)
+- `confirmed: true` n'est pas une preuve de consentement utilisateur, mais empêche
+  l'appel accidentel et rend l'acte traçable
+- Les tests Neon vident la table `notes` — base de dev et de test confondues
+- La catégorie reste dans le préfixe du contenu, pas dans une colonne dédiée
 
-- `npm run dev` — serveur local sur http://127.0.0.1:3000/mcp
+## Commandes
+
+- `npm run dev` — serveur local (charge `.env.local`)
 - `npm run verify` — lint + format + typecheck + tests (ce que fait la CI)
+- `npm run test:db` — tests incluant la suite Neon
+- `npm run db:migrate` — applique `db/schema.sql`
