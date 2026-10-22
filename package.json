@@ -10,6 +10,7 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:db": "node --env-file=.env.local ./node_modules/vitest/vitest.mjs run",
     "verify": "npm run lint && npm run format:check && npm run typecheck && npm test",
     "dev": "tsx watch --env-file=.env.local src/dev.ts",
     "db:migrate": "node --env-file=.env.local --experimental-strip-types db/migrate.ts"
